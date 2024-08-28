@@ -10,6 +10,8 @@
 GxEPD2_BW<WatchyDisplay, WatchyDisplay::HEIGHT> Watchy::display(
     WatchyDisplay{});
 
+
+RTC_DATA_ATTR DosData currentDos;
 RTC_DATA_ATTR int guiState;
 RTC_DATA_ATTR int menuIndex;
 RTC_DATA_ATTR BMA423 sensor;
@@ -23,6 +25,52 @@ RTC_DATA_ATTR bool USB_PLUGGED_IN = false;
 RTC_DATA_ATTR tmElements_t bootTime;
 RTC_DATA_ATTR uint32_t lastIPAddress;
 RTC_DATA_ATTR char lastSSID[30];
+
+DosData Watchy::getDosData(uint8_t updateInterval) {
+  currentDos.updated = false;
+  // if (weatherIntervalCounter < 0) { //-1 on first run, set to updateInterval
+  //   weatherIntervalCounter = updateInterval;
+  // }
+  if (true) {
+    if (connectWiFi()) {
+      //currentDos.level = 1;
+      HTTPClient http; // Use Weather API for live data if WiFi is connected
+      http.setConnectTimeout(5000); // 3 second max timeout
+      String weatherQueryURL = "http://bh.astro.cz/~roman/watchy.html";
+      http.begin(weatherQueryURL.c_str());
+      int httpResponseCode = http.GET();
+      //currentDos.level = httpResponseCode;
+      if (httpResponseCode == 200) {
+        currentDos.updated = true;
+        String payload             = http.getString();
+        JSONVar responseObject     = JSON.parse(payload);
+        currentDos.cps_rate = currentDos.cps;
+        currentDos.cps = int(responseObject["cps"]);
+        currentDos.cps_rate = currentDos.cps - currentDos.cps_rate;
+        currentDos.alert = bool(responseObject["alert"]);
+        currentDos.level = int(responseObject["level"]);
+        currentDos.total_dose = uint32_t(responseObject["total_dose"]);
+        currentDos.updated = true;
+        //gmtOffset = int(responseObject["timezone"]);
+        syncNTP(0);
+      } else {
+        // http error
+      }
+      http.end();
+      // turn off radios
+      WiFi.mode(WIFI_OFF);
+      btStop();
+    } else { // No WiFi, use internal temperature sensor
+      currentDos.updated = false;
+      
+    }
+    //weatherIntervalCounter = 0;
+  } else {
+    //weatherIntervalCounter++;
+  }
+  return currentDos;
+}
+
 
 void Watchy::init(String datetime) {
   esp_sleep_wakeup_cause_t wakeup_reason;
@@ -79,7 +127,7 @@ void Watchy::init(String datetime) {
   #endif
   default: // reset
     RTC.config(datetime);
-    _bmaConfig();
+    // _bmaConfig();
     #ifdef ARDUINO_ESP32S3_DEV
     pinMode(USB_DET_PIN, INPUT);
     USB_PLUGGED_IN = (digitalRead(USB_DET_PIN) == 1);
@@ -113,7 +161,7 @@ void Watchy::deepSleep() {
   //rtc_clk_slow_freq_set(RTC_SLOW_FREQ_32K_XTAL);
   struct tm timeinfo;
   getLocalTime(&timeinfo);
-  int secToNextMin = 60 - timeinfo.tm_sec;
+  int secToNextMin = (60 - timeinfo.tm_sec) % 20;
   esp_sleep_enable_timer_wakeup(secToNextMin * uS_TO_S_FACTOR);
   #else
   // Set GPIOs 0-39 to input to avoid power leaking out
@@ -956,8 +1004,8 @@ void Watchy::_configModeCallback(WiFiManager *myWiFiManager) {
 }
 
 bool Watchy::connectWiFi() {
-  if (WL_CONNECT_FAILED ==
-      WiFi.begin()) { // WiFi not setup, you can also use hard coded credentials
+  if (WL_CONNECT_FAILED == WiFi.begin("Roman","aabbccddeeff")) {
+      //WiFi.begin()) { // WiFi not setup, you can also use hard coded credentials
                       // with WiFi.begin(SSID,PASS);
     WIFI_CONFIGURED = false;
   } else {

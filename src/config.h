@@ -93,7 +93,7 @@
 #define DISPLAY_HEIGHT 200
 // wifi
 #define WIFI_AP_TIMEOUT 60
-#define WIFI_AP_SSID    "Watchy AP"
+#define WIFI_AP_SSID    "DosWatch AP"
 // menu
 #define WATCHFACE_STATE -1
 #define MAIN_MENU_STATE 0

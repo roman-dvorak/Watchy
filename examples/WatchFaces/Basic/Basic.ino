@@ -1,4 +1,4 @@
-#include <Watchy.h>
+#include "./../../../src/Watchy.h"
 #include "settings.h"
 
 Watchy watchy(settings);

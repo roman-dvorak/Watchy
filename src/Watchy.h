@@ -62,6 +62,20 @@ typedef struct watchySettings {
   bool vibrateOClock;
 } watchySettings;
 
+
+typedef struct DosData {
+  uint8_t cps;
+  int8_t cps_rate;
+  bool alert;
+  uint32_t total_dose;
+  uint8_t level;
+  bool updated;
+} DosData;
+
+typedef struct HealthData {
+  uint8_t hr;
+} HealthData;
+
 class Watchy {
 public:
   #ifdef ARDUINO_ESP32S3_DEV
@@ -96,6 +110,7 @@ public:
   void setupWifi();
   bool connectWiFi();
   weatherData getWeatherData();
+  DosData getDosData(uint8_t updateInterval);
   void updateFWBegin();
 
   void showWatchFace(bool partialRefresh);
